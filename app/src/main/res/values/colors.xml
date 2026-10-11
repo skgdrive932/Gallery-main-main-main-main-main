@@ -1,0 +1,10 @@
+<resources>
+    <color name="symbian_blue">#2B6788</color>
+    <color name="symbian_dark_blue">#183B50</color>
+    <color name="symbian_light_blue">#286889</color>
+    <color name="symbian_background">#101820</color>
+    <color name="symbian_white">#FFFFFF</color>
+    <color name="symbian_text">#E8F4FA</color>
+    <color name="symbian_divider">#38576A</color>
+    <color name="mani_search">#243F50</color>
+</resources>

@@ -1,0 +1,1 @@
+# SymbianGallery currently uses minification-disabled release builds.

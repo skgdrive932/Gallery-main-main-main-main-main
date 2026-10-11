@@ -1,0 +1,58 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="132dp"
+    android:layout_margin="3dp"
+    android:background="@drawable/bg_item"
+    android:clickable="true"
+    android:focusable="true">
+
+    <ImageView
+        android:id="@+id/thumb"
+        android:layout_width="match_parent"
+        android:layout_height="98dp"
+        android:scaleType="centerCrop"
+        android:contentDescription="Media thumbnail" />
+
+    <TextView
+        android:id="@+id/videoBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="5dp"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
+        android:text="▶ VIDEO"
+        android:textColor="@color/symbian_white"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:background="@color/symbian_dark_blue"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/selectionMark"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="5dp"
+        android:gravity="center"
+        android:text="✓"
+        android:textColor="#FFFFFF"
+        android:textSize="17sp"
+        android:background="@drawable/bg_tab_selected"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/fileName"
+        android:layout_width="match_parent"
+        android:layout_height="34dp"
+        android:layout_gravity="bottom"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:gravity="center_vertical"
+        android:textColor="@color/symbian_text"
+        android:textSize="11sp" />
+</FrameLayout>
