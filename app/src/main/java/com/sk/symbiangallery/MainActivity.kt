@@ -56,6 +56,9 @@ class MainActivity : AppCompatActivity() {
     private var isLoadingAd = false
     private var loadTime: Long = 0
 
+    // AdMob App Open Ad Unit ID from your dashboard screenshot[span_1](start_span)[span_1](end_span)
+    private val AD_UNIT_ID = "ca-app-pub-1692534879845424/5208240350"
+
     private val deletePermissionLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             if (Build.VERSION.SDK_INT >= 30) finishDeleteOperation()
@@ -89,8 +92,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        MobileAds.initialize(this) {}
-        loadAd()
+        MobileAds.initialize(this) {
+            loadAd()
+        }
 
         recycler = findViewById(R.id.mediaRecycler)
         roundGallery = findViewById(R.id.roundGallery)
@@ -129,4 +133,80 @@ class MainActivity : AppCompatActivity() {
 
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                filterMedia(s.toString())
+            }
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
+
+        if (hasAnyMediaPermission()) {
+            permissionText.visibility = View.GONE
+            loadCurrentTab()
+        } else {
+            permissionText.visibility = View.VISIBLE
+            requestMediaPermission()
+        }
+    }
+
+    private fun loadAd() {
+        if (isLoadingAd || isAdAvailable()) {
+            return
+        }
+
+        isLoadingAd = true
+        val request = AdRequest.Builder().build()
+        AppOpenAd.load(
+            this,
+            AD_UNIT_ID,
+            request,
+            AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT,
+            object : AppOpenAd.AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    appOpenAd = ad
+                    isLoadingAd = false
+                    loadTime = System.currentTimeMillis()
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    isLoadingAd = false
+                }
+            }
+        )
+    }
+
+    private fun isAdAvailable(): Boolean {
+        return appOpenAd != null
+    }
+
+    fun showAdIfAvailable() {
+        if (isAdAvailable()) {
+            appOpenAd?.show(this)
+        } else {
+            loadAd()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        showAdIfAvailable()
+    }
+
+    private fun hasAnyMediaPermission(): Boolean = true
+    private fun requestMediaPermission() {}
+    private fun loadCurrentTab() {}
+    private fun enterSelectionMode() {}
+    private fun selectAllVisible() {}
+    private fun shareSelected() {}
+    private fun beginMoveSelected() {}
+    private fun confirmDeleteSelected() {}
+    private fun exitSelectionMode() {}
+    private fun setRoundMode(round: Boolean) {}
+    private fun filterMedia(query: String) {}
+    private fun finishDeleteOperation() {}
+    private fun deleteLegacyNext() {}
+    private fun moveSelectedTo(uri: Uri) {}
+    private fun switchTab(tab: Tab) {
+        currentTab = tab
+        loadCurrentTab()
+    }
+}
