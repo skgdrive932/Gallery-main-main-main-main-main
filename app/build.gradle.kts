@@ -50,4 +50,7 @@ dependencies {
     
     // Photo Zoom Support Ke Liye PhotoView Library
     implementation("com.github.chrisbanes:PhotoView:2.3.0")
+
+    // Google Mobile Ads SDK (AdMob Integration)
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
 }
