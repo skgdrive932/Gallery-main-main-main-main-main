@@ -23,13 +23,12 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-// AdMob imports added
+// AdMob imports
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.FullScreenContentCallback
-import android.util.Log
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
@@ -151,7 +150,7 @@ class MainActivity : AppCompatActivity() {
         val request = AdRequest.Builder().build()
         AppOpenAd.load(
             this,
-            "ca-app-pub-1692534879845424/5208240350", // Ad Unit ID from image
+            "ca-app-pub-1692534879845424/5208240350",
             request,
             object : AppOpenAd.AppOpenAdLoadCallback() {
                 override fun onAdLoaded(ad: AppOpenAd) {
@@ -169,7 +168,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isAdAvailable(): Boolean {
-        // Ads are valid for 4 hours
         return appOpenAd != null && (System.currentTimeMillis() - loadTime < 4 * 3600 * 1000)
     }
 
@@ -452,4 +450,5 @@ class MainActivity : AppCompatActivity() {
             FolderItem(id, list.firstOrNull()?.bucketName?.ifBlank { "Pictures" } ?: "Pictures", list.size)
         }.sortedBy { it.name.lowercase() }
         countText.text = folders.size.toString()
-        showEmp
+        showEmpty(folders.isEmpty(), "No albums found")
+        recycler.adapter = FolderAdapter(folders) {
