@@ -23,6 +23,13 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+// AdMob imports added
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.appopen.AppOpenAd
+import com.google.android.gms.ads.FullScreenContentCallback
+import android.util.Log
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
@@ -46,6 +53,11 @@ class MainActivity : AppCompatActivity() {
     private var pendingDeleteUris: List<Uri> = emptyList()
     private var pendingDeleteIndex = 0
     private var pendingMove = false
+
+    // AdMob App Open Ad Variables
+    private var appOpenAd: AppOpenAd? = null
+    private var isLoadingAd = false
+    private var loadTime: Long = 0
 
     private val deletePermissionLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -79,6 +91,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Initialize Mobile Ads SDK and Load App Open Ad
+        MobileAds.initialize(this) {}
+        loadAd()
 
         recycler = findViewById(R.id.mediaRecycler)
         roundGallery = findViewById(R.id.roundGallery)
@@ -125,9 +141,63 @@ class MainActivity : AppCompatActivity() {
         if (hasRequiredMediaPermissionForCurrentTab()) loadCurrentTab() else requestMediaPermission()
     }
 
+    // App Open Ad Loading Logic
+    private fun loadAd() {
+        if (isLoadingAd || isAdAvailable()) {
+            return
+        }
+
+        isLoadingAd = true
+        val request = AdRequest.Builder().build()
+        AppOpenAd.load(
+            this,
+            "ca-app-pub-1692534879845424/5208240350", // Ad Unit ID from image
+            request,
+            object : AppOpenAd.AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    appOpenAd = ad
+                    isLoadingAd = false
+                    loadTime = System.currentTimeMillis()
+                    showAdIfAvailable()
+                }
+
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    isLoadingAd = false
+                }
+            }
+        )
+    }
+
+    private fun isAdAvailable(): Boolean {
+        // Ads are valid for 4 hours
+        return appOpenAd != null && (System.currentTimeMillis() - loadTime < 4 * 3600 * 1000)
+    }
+
+    private fun showAdIfAvailable() {
+        if (isAdAvailable()) {
+            appOpenAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    appOpenAd = null
+                    loadAd()
+                }
+
+                override fun onAdFailedToShowFullScreenContent(adError: com.google.android.gms.ads.AdError) {
+                    appOpenAd = null
+                    loadAd()
+                }
+
+                override fun onAdShowedFullScreenContent() {}
+            }
+            appOpenAd?.show(this)
+        } else {
+            loadAd()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (::recycler.isInitialized && hasAnyMediaPermission()) loadCurrentTab()
+        showAdIfAvailable()
     }
 
     private fun switchTab(tab: Tab) {
@@ -382,92 +452,4 @@ class MainActivity : AppCompatActivity() {
             FolderItem(id, list.firstOrNull()?.bucketName?.ifBlank { "Pictures" } ?: "Pictures", list.size)
         }.sortedBy { it.name.lowercase() }
         countText.text = folders.size.toString()
-        showEmpty(folders.isEmpty(), "No albums found")
-        recycler.adapter = FolderAdapter(folders) { folder ->
-            startActivity(Intent(this, FolderActivity::class.java).putExtra("folder_id", folder.id).putExtra("folder_name", folder.name))
-        }
-    }
-
-    private fun loadFavorites() {
-        recycler.visibility = View.VISIBLE
-        roundGallery.visibility = View.GONE
-        recycler.layoutManager = GridLayoutManager(this, 3)
-        val favorites = getSharedPreferences("mani_gallery_favorites", MODE_PRIVATE).getStringSet("uris", emptySet()) ?: emptySet()
-        val allMedia = MediaRepository.loadMedia(contentResolver, true, true)
-        val favoriteItems = allMedia.filter { favorites.contains(it.uri.toString()) }
-        countText.text = favoriteItems.size.toString()
-        showEmpty(favoriteItems.isEmpty(), "No favorites yet. Open a photo and use More → Add / Remove Favorite.")
-        recycler.adapter = MediaAdapter(favoriteItems, onClick = { openMedia(it, favoriteItems) }, onLongClick = { item ->
-            androidx.appcompat.app.AlertDialog.Builder(this).setTitle("Remove favorite?")
-                .setMessage(item.name).setNegativeButton("Cancel", null)
-                .setPositiveButton("Remove") { _, _ ->
-                    val prefs = getSharedPreferences("mani_gallery_favorites", MODE_PRIVATE)
-                    val updated = prefs.getStringSet("uris", emptySet())?.toMutableSet() ?: mutableSetOf()
-                    updated.remove(item.uri.toString())
-                    prefs.edit().putStringSet("uris", updated).apply()
-                    loadFavorites()
-                }.show()
-        })
-    }
-
-    private fun setRoundMode(enabled: Boolean) {
-        roundMode = enabled
-        if (currentTab == Tab.ALBUMS || currentTab == Tab.FAVORITES) roundMode = false
-        gridButton.setBackgroundResource(if (!roundMode) R.drawable.bg_toggle_selected else R.drawable.bg_toggle)
-        roundButton.setBackgroundResource(if (roundMode) R.drawable.bg_toggle_selected else R.drawable.bg_toggle)
-        gridButton.setTextColor(ContextCompat.getColor(this, if (!roundMode) R.color.symbian_white else R.color.symbian_text))
-        roundButton.setTextColor(ContextCompat.getColor(this, if (roundMode) R.color.symbian_white else R.color.symbian_text))
-        applySearch()
-    }
-
-    private fun openMedia(item: MediaItem, visibleItems: List<MediaItem> = currentItems) {
-        if (item.isVideo) {
-            val videos = visibleItems.filter { it.isVideo }
-            val videoPosition = videos.indexOfFirst { it.uri == item.uri }.coerceAtLeast(0)
-            startActivity(Intent(this, VideoPlayerActivity::class.java)
-                .putExtra("uri", item.uri.toString())
-                .putExtra("name", item.name)
-                .putStringArrayListExtra("video_list", ArrayList(videos.map { it.uri.toString() }))
-                .putStringArrayListExtra("video_names", ArrayList(videos.map { it.name }))
-                .putExtra("video_position", videoPosition))
-            return
-        }
-
-        // Photo viewer ko current visible Photos ki poori list bhejo,
-        // taaki ek photo open karne ke baad left/right swipe se next/previous photo khule.
-        val photos = visibleItems.filter { !it.isVideo }
-        val position = photos.indexOfFirst { it.uri == item.uri }.coerceAtLeast(0)
-        val intent = Intent(this, PhotoViewerActivity::class.java).apply {
-            putStringArrayListExtra("image_list", ArrayList(photos.map { it.uri.toString() }))
-            putExtra("position", position)
-            putExtra("uri", item.uri.toString())
-            putExtra("name", item.name)
-        }
-        startActivity(intent)
-    }
-
-    private fun showEmpty(isEmpty: Boolean, message: String) {
-        emptyText.text = message
-        emptyText.visibility = if (isEmpty) View.VISIBLE else View.GONE
-    }
-
-    private fun hasAnyMediaPermission(): Boolean = if (Build.VERSION.SDK_INT >= 33) {
-        ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
-    } else ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-
-    private fun hasRequiredMediaPermissionForCurrentTab(): Boolean {
-        if (Build.VERSION.SDK_INT < 33) return hasAnyMediaPermission()
-        val permission = when (currentTab) {
-            Tab.PHOTOS, Tab.ALBUMS, Tab.FAVORITES -> Manifest.permission.READ_MEDIA_IMAGES
-            Tab.VIDEOS -> Manifest.permission.READ_MEDIA_VIDEO
-        }
-        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun requestMediaPermission() {
-        if (Build.VERSION.SDK_INT >= 33) permissionLauncher.launch(arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO))
-        else if (Build.VERSION.SDK_INT <= 28) permissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE))
-        else permissionLauncher.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
-    }
-}
+        showEmp
